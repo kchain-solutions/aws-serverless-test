@@ -1,102 +1,109 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: patterns-ddb-importer-v1
-
 Parameters:
   ProductBucketName:
     Type: String
-    Default: "btbvm001-product-v1"
+    Default: btbvm001-product-v1
   StockBucketName:
     Type: String
-    Default: "btbvm001-stock-v1"
-
+    Default: btbvm001-stock-v1
 Resources:
   ProductS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref ProductBucketName
-
+      BucketName:
+        Ref: ProductBucketName
   StockS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref StockBucketName
-
+      BucketName:
+        Ref: StockBucketName
   ProductTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: sku
-          AttributeType: S
+      - AttributeName: sku
+        AttributeType: S
       KeySchema:
-        - AttributeName: sku
-          KeyType: HASH
+      - AttributeName: sku
+        KeyType: HASH
       BillingMode: PAY_PER_REQUEST
-
   StockTable:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-        - AttributeName: sku
-          AttributeType: S
+      - AttributeName: sku
+        AttributeType: S
       KeySchema:
-        - AttributeName: sku
-          KeyType: HASH
+      - AttributeName: sku
+        KeyType: HASH
       BillingMode: PAY_PER_REQUEST
-
-  ProductProcessorFunction:
+  ImportProductFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: importFunction/
+      CodeUri: ImportProductFunction
       Handler: app.productHandler
       Runtime: nodejs18.x
       Timeout: 60
       MemorySize: 512
       Environment:
         Variables:
-          PRODUCT_TABLE: !Ref ProductTable
+          PRODUCT_TABLE:
+            Ref: ProductTable
           AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref ProductTable
-        - S3CrudPolicy:
-            BucketName: !Ref ProductBucketName
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: ProductTable
+      - S3CrudPolicy:
+          BucketName:
+            Ref: ProductBucketName
       Events:
         FileUpload:
           Type: S3
           Properties:
-            Bucket: !Ref ProductS3Bucket
+            Bucket:
+              Ref: ProductS3Bucket
             Events: s3:ObjectCreated:*
             Filter:
               S3Key:
                 Rules:
-                  - Name: suffix
-                    Value: ".csv"
-
-  StockProcessorFunction:
+                - Name: suffix
+                  Value: .csv
+    Metadata:
+      SamResourceId: ImportProductFunction
+  ImportStockFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: importFunction/
+      CodeUri: ImportStockFunction
       Handler: app.stockHandler
       Runtime: nodejs18.x
       Timeout: 60
       MemorySize: 512
       Environment:
         Variables:
-          STOCK_TABLE: !Ref StockTable
+          STOCK_TABLE:
+            Ref: StockTable
           AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
       Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref StockTable
-        - S3CrudPolicy:
-            BucketName: !Ref StockBucketName
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: StockTable
+      - S3CrudPolicy:
+          BucketName:
+            Ref: StockBucketName
       Events:
         FileUpload:
           Type: S3
           Properties:
-            Bucket: !Ref StockS3Bucket
+            Bucket:
+              Ref: StockS3Bucket
             Events: s3:ObjectCreated:*
             Filter:
               S3Key:
                 Rules:
-                  - Name: suffix
-                    Value: ".csv"
+                - Name: suffix
+                  Value: .csv
+    Metadata:
+      SamResourceId: ImportStockFunction

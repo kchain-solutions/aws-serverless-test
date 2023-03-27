@@ -7,5 +7,5 @@ region = "eu-west-3"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
-parameter_overrides = "ProductBucketName=\"btbvm001-product-v1\""
+parameter_overrides = "ProductBucketName=\"btbvm001-product-v1\" StockBucketName=\"btbvm001-stock-v1\""
 image_repositories = []
