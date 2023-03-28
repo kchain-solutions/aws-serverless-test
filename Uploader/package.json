@@ -1,0 +1,11 @@
+{
+  "name": "uploader",
+  "version": "1.0.0",
+  "description": "",
+  "main": "uploader.js",
+  "scripts": {
+    "upload": "node uploader.js"
+  },
+  "author": "Valerio Mellini",
+  "license": "MIT"
+}

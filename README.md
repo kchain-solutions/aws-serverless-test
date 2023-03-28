@@ -4,6 +4,12 @@
 
 ## How to run the code
 
+### Deploy 
+
+### Upload CSV
+
+### Call API
+
 ## Command
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock sam local invoke -e ./lambda/lambda_event.json fileProcessorFunction
 DOCKER_HOST=unix://$HOME/.docker/run/docker.sock sam local start-lambda

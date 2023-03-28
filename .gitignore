@@ -1,2 +1,5 @@
-node_modules
+node_modules/
+.aws-sam/*
 .vscode
+Processor/.aws-sam/build/
+

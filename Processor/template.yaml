@@ -158,8 +158,8 @@ Resources:
         type Query {
           getProduct(sku: String!): Product
           getStock(sku: String!): Stock
-          getProducts(limit: Int): ProductCollection
-          getStocks(limit: Int): StockCollection
+          getProducts(limit: Int, nextToken: String): ProductCollection
+          getStocks(limit: Int, nextToken: String): StockCollection
         }
 
         type Stock {
@@ -201,7 +201,7 @@ Resources:
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       DataSourceName: !GetAtt ProductTableDataSource.Name
-      FieldName: getProduct
+      FieldName: getProducts
       TypeName: Query
       RequestMappingTemplate: |
         {
@@ -212,6 +212,17 @@ Resources:
           "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
         }
       ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  StockTableDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: StockDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncDynamoDBServiceRole.Arn
+      DynamoDBConfig:
+        AwsRegion: "eu-west-3"
+        TableName: !Ref StockTableName
 
   GetStockResolver:
     Type: AWS::AppSync::Resolver
@@ -230,23 +241,12 @@ Resources:
         }
       ResponseMappingTemplate: "$util.toJson($context.result)"
 
-  StockTableDataSource:
-    Type: AWS::AppSync::DataSource
-    Properties:
-      ApiId: !GetAtt AppSyncApi.ApiId
-      Name: StockDataSource
-      Type: AMAZON_DYNAMODB
-      ServiceRoleArn: !GetAtt AppSyncDynamoDBServiceRole.Arn
-      DynamoDBConfig:
-        AwsRegion: "eu-west-3"
-        TableName: !Ref StockTableName
-
   GetStocksResolver:
     Type: AWS::AppSync::Resolver
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
       DataSourceName: !GetAtt StockTableDataSource.Name
-      FieldName: getProduct
+      FieldName: getStocks
       TypeName: Query
       RequestMappingTemplate: |
         {
