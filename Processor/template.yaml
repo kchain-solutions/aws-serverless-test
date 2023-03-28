@@ -1,0 +1,287 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Serveless stack to import CSV
+
+Parameters:
+  ProductFunctionName:
+    Type: String
+    Default: "btbvm001-product-processor"
+  StockFunctionName:
+    Type: String
+    Default: "btbvm001-stock-processor"
+  ProductBucketName:
+    Type: String
+    Default: "btbvm001-product-s3"
+  StockBucketName:
+    Type: String
+    Default: "btbvm001-stock-s3"
+  ProductTableName:
+    Type: String
+    Default: "btbvm001-product-table"
+  StockTableName:
+    Type: String
+    Default: "btbvm001-stock-table"
+  APIName:
+    Type: String
+    Default: "btbvm001-appsync"
+
+Resources:
+  ProductS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ProductBucketName
+
+  StockS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref StockBucketName
+
+  ProductTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref ProductTableName
+      AttributeDefinitions:
+        - AttributeName: sku
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sku
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  StockTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref StockTableName
+      AttributeDefinitions:
+        - AttributeName: sku
+          AttributeType: S
+      KeySchema:
+        - AttributeName: sku
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  ProductProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref ProductFunctionName
+      CodeUri: ProcessorFunction/
+      Handler: app.productHandler
+      Runtime: nodejs18.x
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          PRODUCT_TABLE: !Ref ProductTableName
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProductTableName
+        - S3CrudPolicy:
+            BucketName: !Ref ProductBucketName
+      Events:
+        FileUpload:
+          Type: S3
+          Properties:
+            Bucket: !Ref ProductS3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: ".csv"
+
+  StockProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Ref StockFunctionName
+      CodeUri: ProcessorFunction/
+      Handler: app.stockHandler
+      Runtime: nodejs18.x
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          STOCK_TABLE: !Ref StockTableName
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref StockTableName
+        - S3CrudPolicy:
+            BucketName: !Ref StockBucketName
+      Events:
+        FileUpload:
+          Type: S3
+          Properties:
+            Bucket: !Ref StockS3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: ".csv"
+
+  # AppSync GraphQL
+
+  AppSyncApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: !Ref APIName
+      AuthenticationType: API_KEY
+
+  AppSyncAPIKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+
+  ApiSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Definition: |
+        type Product {
+          sku: String!
+          name: String!
+          price: String!
+          updated: Long!
+        }
+
+        type ProductCollection {
+          items: [Product]
+          nextToken: String
+        }
+
+        type StockCollection {
+          items: [Stock]
+          nextToken: String
+        }
+
+        type Query {
+          getProduct(sku: String!): Product
+          getStock(sku: String!): Stock
+          getProducts(limit: Int): ProductCollection
+          getStocks(limit: Int): StockCollection
+        }
+
+        type Stock {
+          sku: String!
+          quantity: Int!
+          updated: Long!
+        }
+
+  ProductTableDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: ProductDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncDynamoDBServiceRole.Arn
+      DynamoDBConfig:
+        AwsRegion: "eu-west-3"
+        TableName: !Ref ProductTableName
+
+  GetProductResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DataSourceName: !GetAtt ProductTableDataSource.Name
+      FieldName: getProduct
+      TypeName: Query
+      RequestMappingTemplate: |
+        {
+          "version" : "2018-05-29",
+          "operation" : "GetItem",
+          "key" : {
+            "sku" : $util.dynamodb.toDynamoDBJson($ctx.args.sku)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  GetProductsResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DataSourceName: !GetAtt ProductTableDataSource.Name
+      FieldName: getProduct
+      TypeName: Query
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Scan",
+          "filter": #if($context.args.filter) $util.transform.toDynamoDBFilterExpression($ctx.args.filter) #else null #end,
+          "limit": $util.defaultIfNull($ctx.args.limit, 20),
+          "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  GetStockResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DataSourceName: !GetAtt StockTableDataSource.Name
+      FieldName: getStock
+      TypeName: Query
+      RequestMappingTemplate: |
+        {
+          "version" : "2018-05-29",
+          "operation" : "GetItem",
+          "key" : {
+            "sku" : $util.dynamodb.toDynamoDBJson($ctx.args.sku)
+          }
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  StockTableDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: StockDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncDynamoDBServiceRole.Arn
+      DynamoDBConfig:
+        AwsRegion: "eu-west-3"
+        TableName: !Ref StockTableName
+
+  GetStocksResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DataSourceName: !GetAtt StockTableDataSource.Name
+      FieldName: getProduct
+      TypeName: Query
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Scan",
+          "filter": #if($context.args.filter) $util.transform.toDynamoDBFilterExpression($ctx.args.filter) #else null #end,
+          "limit": $util.defaultIfNull($ctx.args.limit, 20),
+          "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
+        }
+      ResponseMappingTemplate: "$util.toJson($context.result)"
+
+  AppSyncDynamoDBServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AppSyncDynamoDBServiceRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - appsync.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AppSyncDynamoDBAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                Resource:
+                  - !GetAtt ProductTable.Arn
+                  - !GetAtt StockTable.Arn

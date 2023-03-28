@@ -1,0 +1,241 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serveless stack to import CSV
+Parameters:
+  ProductFunctionName:
+    Type: String
+    Default: btbvm001-product-processor
+  StockFunctionName:
+    Type: String
+    Default: btbvm001-stock-processor
+  ProductBucketName:
+    Type: String
+    Default: btbvm001-product-s3
+  StockBucketName:
+    Type: String
+    Default: btbvm001-stock-s3
+  ProductTableName:
+    Type: String
+    Default: btbvm001-product-table
+  StockTableName:
+    Type: String
+    Default: btbvm001-stock-table
+  APIName:
+    Type: String
+    Default: btbvm001-appsync
+Resources:
+  ProductS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: ProductBucketName
+  StockS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: StockBucketName
+  ProductTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Ref: ProductTableName
+      AttributeDefinitions:
+      - AttributeName: sku
+        AttributeType: S
+      KeySchema:
+      - AttributeName: sku
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  StockTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName:
+        Ref: StockTableName
+      AttributeDefinitions:
+      - AttributeName: sku
+        AttributeType: S
+      KeySchema:
+      - AttributeName: sku
+        KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+  ProductProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Ref: ProductFunctionName
+      CodeUri: ProductProcessorFunction
+      Handler: app.productHandler
+      Runtime: nodejs18.x
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          PRODUCT_TABLE:
+            Ref: ProductTableName
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: ProductTableName
+      - S3CrudPolicy:
+          BucketName:
+            Ref: ProductBucketName
+      Events:
+        FileUpload:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: ProductS3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix
+                  Value: .csv
+    Metadata:
+      SamResourceId: ProductProcessorFunction
+  StockProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName:
+        Ref: StockFunctionName
+      CodeUri: StockProcessorFunction
+      Handler: app.stockHandler
+      Runtime: nodejs18.x
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          STOCK_TABLE:
+            Ref: StockTableName
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+      Policies:
+      - DynamoDBCrudPolicy:
+          TableName:
+            Ref: StockTableName
+      - S3CrudPolicy:
+          BucketName:
+            Ref: StockBucketName
+      Events:
+        FileUpload:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: StockS3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                - Name: suffix
+                  Value: .csv
+    Metadata:
+      SamResourceId: StockProcessorFunction
+  AppSyncApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name:
+        Ref: APIName
+      AuthenticationType: API_KEY
+  AppSyncAPIKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - AppSyncApi
+        - ApiId
+  ApiSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - AppSyncApi
+        - ApiId
+      Definition: "type Product {\n  sku: String!\n  name: String!\n  price: String!\n\
+        \  updated: Int!\n}\n\ntype ProductCollection {\n  items: [Product]\n  nextToken:\
+        \ String\n}\n\ntype StockCollection {\n  items: [Stock]\n  nextToken: String\n\
+        }\n\ntype Query {\n  getProduct(sku: String!): Product\n  getStock(sku: String!):\
+        \ Stock\n  getProducts(limit: Int): ProductCollection\n  getStocks(limit:\
+        \ Int): StockCollection\n}\n\ntype Stock {\n  sku: String!\n  quantity: Int!\n\
+        \  updated: Int!\n}\n"
+  ProductTableDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - AppSyncApi
+        - ApiId
+      Name: ProductDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn:
+        Fn::GetAtt:
+        - AppSyncDynamoDBServiceRole
+        - Arn
+      DynamoDBConfig:
+        AwsRegion: eu-west-3
+        TableName:
+          Ref: ProductTableName
+  CustomersResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - AppSyncApi
+        - ApiId
+      DataSourceName:
+        Fn::GetAtt:
+        - ProductTableDataSource
+        - Name
+      FieldName: getProduct
+      TypeName: Query
+      RequestMappingTemplate: "{\n  \"version\" : \"2018-05-29\",\n  \"operation\"\
+        \ : \"GetItem\",\n  \"key\" : {\n    \"id\" : $util.dynamodb.toDynamoDBJson($ctx.args.id)\n\
+        \  }\n}\n"
+      ResponseMappingTemplate: $util.toJson($context.result)
+  StockTableDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+        - AppSyncApi
+        - ApiId
+      Name: StockDataSource
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn:
+        Fn::GetAtt:
+        - AppSyncDynamoDBServiceRole
+        - Arn
+      DynamoDBConfig:
+        AwsRegion: eu-west-3
+        TableName:
+          Ref: StockTableName
+  AppSyncDynamoDBServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AppSyncDynamoDBServiceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - appsync.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: AppSyncDynamoDBAccess
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            Resource:
+            - Fn::GetAtt:
+              - ProductTable
+              - Arn
+            - Fn::GetAtt:
+              - StockTable
+              - Arn
