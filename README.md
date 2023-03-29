@@ -41,8 +41,14 @@ Then, follow the guided procedure on the terminal and wait for confirmation that
 ### 2.2 Upload CSV
 It is possible to upload the ```products.csv``` and ```stocks.csv``` files using the script located in the ```Uploader``` folder.
 
-To upload the files run the following commands:
+Before running the commands for file upload, a ```.env``` file, that contains the bucket names, **MUST BE CREATED** in the Uploader folder. Below is an example of the ```.env``` file.
 
+```txt
+PRODUCTS_BUCKET_NAME="<<INSERT PRODUCTS BUCKET NAME HERE>>"
+STOCKS_BUCKET_NAME="<<INSERT STOCKS BUCKET NAME HERE>>"
+```
+
+To upload the files run the following commands:
 ```bash 
 cd Uploader
 npm install

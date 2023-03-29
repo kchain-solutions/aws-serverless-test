@@ -4,3 +4,4 @@ node_modules/
 Processor/.aws-sam/build/
 .env
 package-lock.json
+samconfig.toml
