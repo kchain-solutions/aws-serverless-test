@@ -7,5 +7,9 @@
     "upload": "node uploader.js"
   },
   "author": "Valerio Mellini",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1345.0",
+    "dotenv": "^16.0.3"
+  }
 }

@@ -21,8 +21,13 @@ exports.productHandler = async (event) => {
           Bucket: record.s3.bucket.name,
           Key: record.s3.object.key
         }).promise();
-        const jsonData = Papa.parse(originalText.Body.toString('utf-8'), { header: true, delimiter: "," }).data;
-        await ddbLoader(jsonData, ddbTable)
+        const parsed = Papa.parse(originalText.Body.toString('utf-8'), { header: true, delimiter: ",", skipEmptyLines: true });
+        const fields = parsed.meta.fields.map(str => str.toLowerCase());
+        console.log("Fields ", fields);
+        if (fields.indexOf("sku") !== -1 && fields.indexOf("name") !== -1 && fields.indexOf("price") !== -1)
+          await ddbLoader(parsed.data, ddbTable);
+        else
+          console.error("Invalid CSV format for ", record.s3.object.key);
       } catch (err) {
         console.error(err)
       }
@@ -43,15 +48,18 @@ exports.stockHandler = async (event) => {
           Bucket: record.s3.bucket.name,
           Key: record.s3.object.key
         }).promise();
-        const jsonData = Papa.parse(originalText.Body.toString('utf-8'), { header: true, delimiter: "," }).data;
-        await ddbLoader(jsonData, ddbTable)
+        const parsed = Papa.parse(originalText.Body.toString('utf-8'), { header: true, delimiter: ",", skipEmptyLines: true });
+        const fields = parsed.meta.fields.map(str => str.toLowerCase());
+        if (fields.indexOf("sku") !== -1 && fields.indexOf("quantity") !== -1)
+          await ddbLoader(parsed.data, ddbTable);
+        else
+          console.error("Invalid CSV format for ", record.s3.object.key);
       } catch (err) {
         console.error(err)
       }
     })
   )
 }
-
 
 // Load JSON data to DynamoDB table
 const ddbLoader = async (data, ddbTable) => {
@@ -85,12 +93,11 @@ const ddbLoader = async (data, ddbTable) => {
         })
       })
       try {
-        batchCount++
-        console.log('Trying batch: ', batchCount)
-        const result = await docClient.batchWrite(params).promise()
-        console.log('Success: ', result)
+        batchCount++;
+        const result = await docClient.batchWrite(params).promise();
+        console.log('Batch: ', batchCount, ' Success: ', result);
       } catch (err) {
-        console.error('Error: ', err)
+        console.error('Batch: ', batchCount, ' Error: ', err)
       }
     })
   )

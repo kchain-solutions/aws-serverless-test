@@ -5,22 +5,22 @@ Description: Serveless stack to import CSV
 Parameters:
   ProductFunctionName:
     Type: String
-    Default: "btbvm001-product-processor"
+    Default: "btbvm001-products-processor"
   StockFunctionName:
     Type: String
-    Default: "btbvm001-stock-processor"
+    Default: "btbvm001-stocks-processor"
   ProductBucketName:
     Type: String
-    Default: "btbvm001-product-s3"
+    Default: "btbvm001-products-s3"
   StockBucketName:
     Type: String
-    Default: "btbvm001-stock-s3"
+    Default: "btbvm001-stocks-s3"
   ProductTableName:
     Type: String
-    Default: "btbvm001-product-table"
+    Default: "btbvm001-producs-table"
   StockTableName:
     Type: String
-    Default: "btbvm001-stock-table"
+    Default: "btbvm001-stocks-table"
   APIName:
     Type: String
     Default: "btbvm001-appsync"
@@ -60,7 +60,7 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  ProductProcessorFunction:
+  ProductsProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref ProductFunctionName
@@ -90,7 +90,7 @@ Resources:
                   - Name: suffix
                     Value: ".csv"
 
-  StockProcessorFunction:
+  StocksProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref StockFunctionName
