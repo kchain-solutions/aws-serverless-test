@@ -3,3 +3,4 @@ node_modules/
 .vscode
 Processor/.aws-sam/build/
 .env
+package-lock.json

@@ -1,6 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
-Description: Serveless stack to import CSV
+Description: >
+  Serveless stack to import CSV and make data available from graphQL endpoint
 
 Parameters:
   ProductFunctionName:
@@ -17,7 +18,7 @@ Parameters:
     Default: "btbvm001-stocks-s3"
   ProductTableName:
     Type: String
-    Default: "btbvm001-producs-table"
+    Default: "btbvm001-products-table"
   StockTableName:
     Type: String
     Default: "btbvm001-stocks-table"
@@ -64,7 +65,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref ProductFunctionName
-      CodeUri: ProcessorFunction/
+      CodeUri: ProcessorFunctions/
       Handler: app.productHandler
       Runtime: nodejs18.x
       Timeout: 60
@@ -94,7 +95,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: !Ref StockFunctionName
-      CodeUri: ProcessorFunction/
+      CodeUri: ProcessorFunctions/
       Handler: app.stockHandler
       Runtime: nodejs18.x
       Timeout: 60

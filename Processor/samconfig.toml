@@ -1,11 +1,11 @@
 version = 0.1
 [default.deploy.parameters]
-stack_name = "serverless-csv-processor"
+stack_name = "serverless-app"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-12s1paybggis7"
-s3_prefix = "serverless-csv-processor"
+s3_prefix = "serverless-app"
 region = "eu-west-3"
 confirm_changeset = true
 capabilities = "CAPABILITY_NAMED_IAM"
 disable_rollback = true
+parameter_overrides = "ProductFunctionName=\"btbvm001-products-processor\" StockFunctionName=\"btbvm001-stocks-processor\" ProductBucketName=\"btbvm001-products-s3\" StockBucketName=\"btbvm001-stocks-s3\" ProductTableName=\"btbvm001-products-table\" StockTableName=\"btbvm001-stocks-table\" APIName=\"btbvm001-appsync\""
 image_repositories = []
-parameter_overrides = "ProductFunctionName=\"btbvm001-products-processor\" StockFunctionName=\"btbvm001-stocks-processor\" ProductBucketName=\"btbvm001-products-s3\" StockBucketName=\"btbvm001-stocks-s3\" ProductTableName=\"btbvm001-producs-table\" StockTableName=\"btbvm001-stocks-table\" APIName=\"btbvm001-appsync\""
