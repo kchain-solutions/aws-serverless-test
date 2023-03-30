@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  Serveless stack to import CSV and make data available from a GraphQL endpoint
+  A serverless architecture to facilitate the importation of CSV files and provide seamless access to the data through a GraphQL endpoint.
 
 Parameters:
   ProcessorFunctionName:
