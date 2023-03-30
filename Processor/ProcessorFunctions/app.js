@@ -15,7 +15,7 @@ const SCHEMA_TYPE = Object.freeze({
 
 // The Lambda handler
 exports.processorHandler = async (event) => {
-  console.log('Product function running...');
+  console.log('Processor function running...');
   await Promise.all(event.Records.map(processRecord));
 };
 
@@ -57,9 +57,15 @@ const ddbLoader = async (data, schemaType) => {
       ? createProductsRequest(item)
       : createStocksRequest(item);
   });
-
+  const promises = updateRequests.map(req => docClient.update(req).promise());
   try {
-    await Promise.all(updateRequests.map(req => docClient.update(req).promise()));
+    await Promise.all(promises.map((promise, index) =>
+      promise.catch((error) => {
+        error.index = index;
+      })
+    )).catch((error) => {
+      console.error(`Promise at index ${error.index} failed:`, error.message);
+    });
     console.log('Success upload for ', schemaType === SCHEMA_TYPE.product ? 'Product' : 'Stock');
   } catch (error) {
     console.error('Error during batch update operation:', error);
