@@ -46,7 +46,7 @@ It is possible to upload the ```products.csv``` and ```stocks.csv``` files using
 Before running the commands for file upload, a ```.env``` file, that contains the bucket names, **MUST BE CREATED** in the Uploader folder. Below is an example of the ```.env``` file.
 
 ```txt
-STORAGE_BUCKET_NAME="<<INSERT PRODUCTS BUCKET NAME HERE>>"
+STORAGE_BUCKET_NAME="<<INSERT STORAGE BUCKET NAME HERE>>"
 ```
 
 To upload the files run the following commands:
