@@ -4,21 +4,13 @@
 
 ![](img/architecture.png)
 
-The proposed solution is designed to ensure the storage of two types of .csv files and make the data available to the user through a GraphQL API protected by an API key.
+The proposed solution aims to facilitate the storage of two types of .csv files, namely Products and Stocks, and enable users to access the data through a GraphQL API that is secured by an API key.
 
-The file types are:
-- **Products** with properties sku, name, price
-- **Stocks with** properties sku, quantity
+To upload the files into the Buckets, a CSV-Uploader is utilized, which is currently a simple JavaScript script instead of an ideal web interface.
 
+Once the files are loaded into the Bucket, an event is triggered to call a Lambda function. This function is responsible for verifying that the .csv files are well-formed, parsing them into .json format, and then sending them to a DynamoDB table. The standard output of the function is stored in CloudWatch. The DynamoDB table contains the merged records of the products and stocks data.
 
-The loading of the files into their respective Buckets is ensured by a CSV-Uploader, which ideally should be a web interface, but in this case, it is a simple JavaScript script.
-
-Loading the file into the respective bucket triggers an event that calls a **Lambda function**.
-
-The Lambda function's task is to read the .csv file, verify that it is well-formed, parse it into .json format, and then send the various elements to the appropriate DynamoDB table. The function's standard output is saved in **CloudWatch**.
-
-**AppSync** is the AWS service dedicated to exposing GraphQL endpoints. AppSync performs mapping and makes the indexed results available to an https client (e.g., Postman).
-
+AppSync is an AWS service that specializes in exposing GraphQL endpoints. AppSync maps with the DynamoDB table and provides indexed results to an https client, such as Postman.
 
 ## 2. How to run the code
 
@@ -44,8 +36,7 @@ It is possible to upload the ```products.csv``` and ```stocks.csv``` files using
 Before running the commands for file upload, a ```.env``` file, that contains the bucket names, **MUST BE CREATED** in the Uploader folder. Below is an example of the ```.env``` file.
 
 ```txt
-PRODUCTS_BUCKET_NAME="<<INSERT PRODUCTS BUCKET NAME HERE>>"
-STOCKS_BUCKET_NAME="<<INSERT STOCKS BUCKET NAME HERE>>"
+STORAGE_BUCKET_NAME="<<INSERT PRODUCTS BUCKET NAME HERE>>"
 ```
 
 To upload the files run the following commands:
@@ -72,13 +63,11 @@ Below are some examples of queries.
 
 ## 3. Technical debts
 - [ ] Implementation of a web interface for file upload
-- [ ] Lambda function optimization: The code for the two lambda functions is repeated and should be consolidated into a shared function.
 - [ ] Security improvement. Switch to AppSync API_KEY authentication to AWS Cognito. 
   - [ ] In AppSync, it's possible to use Cognito as an authentication provider to authenticate and authorize API calls to your AppSync API. This enables you to control access to specific fields or types based on user roles, and also allows you to track user activity and enforce security policies. 
   - [ ] It can be possible to use Cognito to control access to your S3 buckets.
 - [ ] Plan for deployment in environments (dev, test, quality, prod)
-- [ ] Improve integration with Cloudwatch for logging
-- [ ] Implement filters for GraphQL queries (getProducts, getStocks)
+- [ ] Improve integration with Cloudwatch for logging all services activities
 
 
 

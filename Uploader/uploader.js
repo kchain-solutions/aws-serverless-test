@@ -4,8 +4,7 @@ require('dotenv').config();
 AWS.config.update({ region: 'eu-west-3' });
 const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
-const productBucketName = process.env.PRODUCTS_BUCKET_NAME;
-const stockBucketName = process.env.STOCKS_BUCKET_NAME;
+const storageBucketName = process.env.STORAGE_BUCKET_NAME;
 const productPath = './csv/products.csv';
 const stockPath = './csv/stocks.csv';
 const productKey = "products_" + Date.now() + ".csv";
@@ -15,12 +14,12 @@ const productFile = fs.readFileSync(productPath);
 const stockFile = fs.readFileSync(stockPath);
 
 const productParams = {
-    Bucket: productBucketName,
+    Bucket: storageBucketName,
     Key: productKey,
     Body: productFile
 };
 const stockParams = {
-    Bucket: stockBucketName,
+    Bucket: storageBucketName,
     Key: stockKey,
     Body: stockFile
 };

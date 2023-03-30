@@ -4,38 +4,24 @@ Description: >
   Serveless stack to import CSV and make data available from graphQL endpoint
 
 Parameters:
-  ProductFunctionName:
+  ProcessorFunctionName:
     Type: String
-    Default: "btbvm001-products-processor"
-  StockFunctionName:
+    Default: "btbvm001-processor-function"
+  StorageBucketName:
     Type: String
-    Default: "btbvm001-stocks-processor"
-  ProductBucketName:
-    Type: String
-    Default: "btbvm001-products-s3"
-  StockBucketName:
-    Type: String
-    Default: "btbvm001-stocks-s3"
+    Default: "btbvm001-storage-s3"
   ProductTableName:
     Type: String
     Default: "btbvm001-products-table"
-  StockTableName:
-    Type: String
-    Default: "btbvm001-stocks-table"
   APIName:
     Type: String
     Default: "btbvm001-appsync"
 
 Resources:
-  ProductS3Bucket:
+  StorageS3Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref ProductBucketName
-
-  StockS3Bucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref StockBucketName
+      BucketName: !Ref StorageBucketName
 
   ProductTable:
     Type: AWS::DynamoDB::Table
@@ -49,24 +35,12 @@ Resources:
           KeyType: HASH
       BillingMode: PAY_PER_REQUEST
 
-  StockTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Ref StockTableName
-      AttributeDefinitions:
-        - AttributeName: sku
-          AttributeType: S
-      KeySchema:
-        - AttributeName: sku
-          KeyType: HASH
-      BillingMode: PAY_PER_REQUEST
-
-  ProductsProcessorFunction:
+  ProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: !Ref ProductFunctionName
+      FunctionName: !Ref ProcessorFunctionName
       CodeUri: ProcessorFunctions/
-      Handler: app.productHandler
+      Handler: app.processorHandler
       Runtime: nodejs18.x
       Timeout: 60
       MemorySize: 512
@@ -78,42 +52,12 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref ProductTableName
         - S3CrudPolicy:
-            BucketName: !Ref ProductBucketName
+            BucketName: !Ref StorageBucketName
       Events:
         FileUpload:
           Type: S3
           Properties:
-            Bucket: !Ref ProductS3Bucket
-            Events: s3:ObjectCreated:*
-            Filter:
-              S3Key:
-                Rules:
-                  - Name: suffix
-                    Value: ".csv"
-
-  StocksProcessorFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      FunctionName: !Ref StockFunctionName
-      CodeUri: ProcessorFunctions/
-      Handler: app.stockHandler
-      Runtime: nodejs18.x
-      Timeout: 60
-      MemorySize: 512
-      Environment:
-        Variables:
-          STOCK_TABLE: !Ref StockTableName
-          AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref StockTableName
-        - S3CrudPolicy:
-            BucketName: !Ref StockBucketName
-      Events:
-        FileUpload:
-          Type: S3
-          Properties:
-            Bucket: !Ref StockS3Bucket
+            Bucket: !Ref StorageS3Bucket
             Events: s3:ObjectCreated:*
             Filter:
               S3Key:
@@ -122,7 +66,6 @@ Resources:
                     Value: ".csv"
 
   # AppSync GraphQL
-
   AppSyncApi:
     Type: AWS::AppSync::GraphQLApi
     Properties:
@@ -143,6 +86,7 @@ Resources:
           sku: String!
           name: String!
           price: String!
+          quantity: Int
           updated: Long!
         }
 
@@ -151,22 +95,9 @@ Resources:
           nextToken: String
         }
 
-        type StockCollection {
-          items: [Stock]
-          nextToken: String
-        }
-
         type Query {
           getProduct(sku: String!): Product
-          getStock(sku: String!): Stock
           getProducts(limit: Int, nextToken: String): ProductCollection
-          getStocks(limit: Int, nextToken: String): StockCollection
-        }
-
-        type Stock {
-          sku: String!
-          quantity: Int!
-          updated: Long!
         }
 
   ProductTableDataSource:
@@ -214,51 +145,6 @@ Resources:
         }
       ResponseMappingTemplate: "$util.toJson($context.result)"
 
-  StockTableDataSource:
-    Type: AWS::AppSync::DataSource
-    Properties:
-      ApiId: !GetAtt AppSyncApi.ApiId
-      Name: StockDataSource
-      Type: AMAZON_DYNAMODB
-      ServiceRoleArn: !GetAtt AppSyncDynamoDBServiceRole.Arn
-      DynamoDBConfig:
-        AwsRegion: "eu-west-3"
-        TableName: !Ref StockTableName
-
-  GetStockResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId: !GetAtt AppSyncApi.ApiId
-      DataSourceName: !GetAtt StockTableDataSource.Name
-      FieldName: getStock
-      TypeName: Query
-      RequestMappingTemplate: |
-        {
-          "version" : "2018-05-29",
-          "operation" : "GetItem",
-          "key" : {
-            "sku" : $util.dynamodb.toDynamoDBJson($ctx.args.sku)
-          }
-        }
-      ResponseMappingTemplate: "$util.toJson($context.result)"
-
-  GetStocksResolver:
-    Type: AWS::AppSync::Resolver
-    Properties:
-      ApiId: !GetAtt AppSyncApi.ApiId
-      DataSourceName: !GetAtt StockTableDataSource.Name
-      FieldName: getStocks
-      TypeName: Query
-      RequestMappingTemplate: |
-        {
-          "version": "2017-02-28",
-          "operation": "Scan",
-          "filter": #if($context.args.filter) $util.transform.toDynamoDBFilterExpression($ctx.args.filter) #else null #end,
-          "limit": $util.defaultIfNull($ctx.args.limit, 20),
-          "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
-        }
-      ResponseMappingTemplate: "$util.toJson($context.result)"
-
   AppSyncDynamoDBServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -285,4 +171,3 @@ Resources:
                   - dynamodb:GetItem
                 Resource:
                   - !GetAtt ProductTable.Arn
-                  - !GetAtt StockTable.Arn
