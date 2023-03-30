@@ -65,7 +65,7 @@ After the successful completion of the .csv upload, it is possible to query the 
 Then, we will enter them into Postman. 
 ![](./img/postman_cred.png)
 
-Below are some examples of queries.
+Below are some examples of queries. The queries support filters and pagination, incorporating features such as 'limit' and 'nextToken' for seamless navigation.
 ![](./img/postman_call_1.png)
 ![](./img/postman_call_2.png)
 
@@ -73,8 +73,8 @@ Below are some examples of queries.
 
 ## 3. Potential Enhancement
 - [ ] Implementation of a web interface for file upload
-- [ ] Security improvement. Switch to AppSync API_KEY authentication to AWS Cognito. 
-  - [ ] In AppSync, it's possible to use Cognito as an authentication provider to authenticate and authorize API calls to your AppSync API. This enables you to control access to specific fields or types based on user roles, and also allows you to track user activity and enforce security policies. 
+- [ ] Security improvement. Switch from AppSync API_KEY authentication to AWS Cognito. 
+  - [ ] In AppSync, it's possible to use Cognito as an authentication provider to authenticate and authorize API calls to your AppSync API. This enables to control access to specific fields or types based on user roles, and also allows you to track user activity and enforce security policies. 
   - [ ] It can be possible to use Cognito to control access to your S3 buckets.
 - [ ] Plan for deployment in environments (dev, test, quality, prod)
 - [ ] Improve integration with Cloudwatch for logging all services activities
