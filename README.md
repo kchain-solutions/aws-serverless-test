@@ -18,6 +18,16 @@ AppSync is an AWS service that specializes in exposing GraphQL endpoints. AppSyn
 Before proceeding, make sure you have installed 
 [aws-cli](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html), [sam-cli](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) and [Node 18x](https://nodejs.org/en).
 
+Now, you need to configure aws-cli using your user security credentials. You can generate an access key by accessing the ```Security Credentials``` tab, as illustrated in the image below.
+
+![](./img/user_cred.png)
+
+Execute the following command using the newly generated credentials:
+
+```bash
+aws configure
+```
+
  The code for deploying the solution is contained within the ```Processor``` folder.
 
 To deploy the code, execute the following commands:
@@ -61,7 +71,7 @@ Below are some examples of queries.
 
 
 
-## 3. Technical debts
+## 3. Potential Enhancement
 - [ ] Implementation of a web interface for file upload
 - [ ] Security improvement. Switch to AppSync API_KEY authentication to AWS Cognito. 
   - [ ] In AppSync, it's possible to use Cognito as an authentication provider to authenticate and authorize API calls to your AppSync API. This enables you to control access to specific fields or types based on user roles, and also allows you to track user activity and enforce security policies. 

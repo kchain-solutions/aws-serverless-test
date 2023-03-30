@@ -97,7 +97,52 @@ Resources:
 
         type Query {
           getProduct(sku: String!): Product
-          getProducts(limit: Int, nextToken: String): ProductCollection
+          getProducts(filter: ProductFilterInput, limit: Int, nextToken: String): ProductCollection
+        }
+
+        input ProductFilterInput {
+          sku: StringFilterInput
+          name: StringFilterInput
+          price: StringFilterInput
+          quantity: IntFilterInput
+          updated: LongFilterInput
+        }
+
+        input IntFilterInput {
+          ne: Int
+          eq: Int
+          le: Int
+          lt: Int
+          ge: Int
+          gt: Int
+          contains: Int
+          notContains: Int
+          between: [Int]
+        }
+
+        input LongFilterInput {
+          ne: Long
+          eq: Long
+          le: Long
+          lt: Long
+          ge: Long
+          gt: Long
+          contains: Long
+          notContains: Long
+          between: [Long]
+        }
+
+        input StringFilterInput {
+          ne: String
+          eq: String
+          le: String
+          lt: String
+          ge: String
+          gt: String
+          contains: String
+          notContains: String
+          between: [String]
+          beginsWith: String
         }
 
   ProductTableDataSource:
@@ -140,7 +185,7 @@ Resources:
           "version": "2017-02-28",
           "operation": "Scan",
           "filter": #if($context.args.filter) $util.transform.toDynamoDBFilterExpression($ctx.args.filter) #else null #end,
-          "limit": $util.defaultIfNull($ctx.args.limit, 20),
+          "limit": $util.defaultIfNull($ctx.args.limit, 50),
           "nextToken": $util.toJson($util.defaultIfNullOrEmpty($ctx.args.nextToken, null)),
         }
       ResponseMappingTemplate: "$util.toJson($context.result)"
