@@ -1,40 +1,33 @@
-const AWS = require("aws-sdk");
-const fs = require("fs");
+const AWS = require('aws-sdk');
+const fs = require('fs');
 require('dotenv').config();
+
 AWS.config.update({ region: 'eu-west-3' });
 const s3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
 const storageBucketName = process.env.STORAGE_BUCKET_NAME;
 const productPath = './csv/products.csv';
 const stockPath = './csv/stocks.csv';
-const productKey = "products_" + Date.now() + ".csv";
-const stockKey = "stocks_" + Date.now() + ".csv";
 
-const productFile = fs.readFileSync(productPath);
-const stockFile = fs.readFileSync(stockPath);
+const uploadFileToS3 = async (filePath, keyPrefix) => {
+    try {
+        const fileContent = fs.readFileSync(filePath);
+        const params = {
+            Bucket: storageBucketName,
+            Key: `${keyPrefix}_${Date.now()}.csv`,
+            Body: fileContent,
+        };
 
-const productParams = {
-    Bucket: storageBucketName,
-    Key: productKey,
-    Body: productFile
-};
-const stockParams = {
-    Bucket: storageBucketName,
-    Key: stockKey,
-    Body: stockFile
-};
-
-s3.upload(productParams, function (err, data) {
-    if (err) {
-        console.log("Error uploading file: ", err);
-    } else {
-        console.log("Successfully products file uploaded to S3 bucket.");
+        await s3.upload(params).promise();
+        console.log(`Successfully uploaded ${keyPrefix} file to S3 bucket.`);
+    } catch (err) {
+        console.error(`Error uploading ${keyPrefix} file: `, err);
     }
-});
-s3.upload(stockParams, function (err, data) {
-    if (err) {
-        console.log("Error uploading file: ", err);
-    } else {
-        console.log("Successfully stocks uploaded file to S3 bucket.");
-    }
-});
+};
+
+(async () => {
+    await Promise.all([
+        uploadFileToS3(productPath, 'products'),
+        uploadFileToS3(stockPath, 'stocks'),
+    ]);
+})();
